@@ -13,6 +13,9 @@ import com.github.messenger4j.send.templates.GenericTemplate;
 import com.github.messenger4j.user.UserProfile;
 import com.github.messenger4j.user.UserProfileClient;
 import com.github.messenger4j.user.UserProfileClientBuilder;
+import me.aboullaite.domain.Choice;
+import me.aboullaite.domain.LightAffectDao;
+import me.aboullaite.domain.Question;
 import me.aboullaite.domain.SearchResult;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -38,21 +41,24 @@ import java.util.stream.Collectors;
 @RequestMapping("/callback")
 public class CallBackHandler {
 
+    @Autowired
+    private LightAffectDao lightAffectDao;
+
     private static final Logger logger = LoggerFactory.getLogger(CallBackHandler.class);
 
     private static final String RESOURCE_URL =
             "https://raw.githubusercontent.com/fbsamples/messenger-platform-samples/master/node/public";
-    public static final String Men = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_ACTION";
-    public static final String MaykaMan = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_MAYKA";
-    public static final String TrusikMan = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_TRUSIK";
-    public static final String KoshikMan = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_KOSHIK";
+    private static final String Men = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_ACTION";
+    private static final String MaykaMan = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_MAYKA";
+    private static final String TrusikMan = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_TRUSIK";
+    private static final String KoshikMan = "DEVELOPER_DEFINED_PAYLOAD_FOR_GOOD_KOSHIK";
 
 
-    public static final String Women = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_ACTION";
-    public static final String MaykaWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_MAYKA";
-    public static final String TrusikWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_TRUSIK";
-    public static final String BijuWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_BIJU";
-    public static final String KoshikWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_KOSHIK";
+    private static final String Women = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_ACTION";
+    private static final String MaykaWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_MAYKA";
+    private static final String TrusikWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_TRUSIK";
+    private static final String BijuWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_BIJU";
+    private static final String KoshikWoman = "DEVELOPER_DEFINED_PAYLOAD_FOR_NOT_GOOD_KOSHIK";
 
 
     private final MessengerReceiveClient receiveClient;
@@ -147,13 +153,12 @@ public class CallBackHandler {
 
             switch (messageText.toLowerCase()) {
                 case "start":
-                    final List<QuickReply> quickRepliesForStart = QuickReply.newListBuilder()
-                            .addTextQuickReply("Տղամարդու", Men).toList()
-                            .addTextQuickReply("Կանացի", Women).toList()
-                            .build();
+                    List<QuickReply> quickList = lightAffectDao.getListOfQuickRepliesForStart("topic");
+
+                    String questionForBarev = lightAffectDao.getQuestionByTopic("start");
 
                     try {
-                        this.sendClient.sendTextMessage(senderId, "Ընտրեք  որ բաժինն է հետաքրքրում?", quickRepliesForStart);
+                        this.sendClient.sendTextMessage(senderId, questionForBarev, quickList);
                     } catch (MessengerApiException | MessengerIOException e) {
                         e.printStackTrace();
                     }
@@ -170,17 +175,18 @@ public class CallBackHandler {
                 case "բարի օր":
                 case "բարև":
                     try {
+
                         this.sendClient.sendTextMessage(senderId, "Բարև հարգելի " + (userProfile == null ? "հաճախորդ" : userProfile.getFirstName()));
                     } catch (MessengerApiException | MessengerIOException e) {
                         e.printStackTrace();
                     }
-                    final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                            .addTextQuickReply("Տղամարդու", Men).toList()
-                            .addTextQuickReply("Կանացի", Women).toList()
-                            .build();
+
+                    quickList = lightAffectDao.getListOfQuickRepliesForStart("topic");
+
+                    questionForBarev = lightAffectDao.getQuestionByTopic("start");
 
                     try {
-                        this.sendClient.sendTextMessage(senderId, "Ընտրեք  որ բաժինն է հետաքրքրում?", quickReplies);
+                        this.sendClient.sendTextMessage(senderId, questionForBarev, quickList);
                     } catch (MessengerApiException | MessengerIOException e) {
                         e.printStackTrace();
                     }
@@ -304,8 +310,31 @@ public class CallBackHandler {
 
             logger.info("Received quick reply for message '{}' with payload '{}'", messageId, quickReplyPayload);
 
+            Integer choiceId = Integer.valueOf(quickReplyPayload.substring(0, quickReplyPayload.indexOf('_')));
 
-            if (quickReplyPayload.equals(Men)) {
+            Choice choice = lightAffectDao.getChoiceFromChoiceId(choiceId);
+            Integer nextQuestionId = choice.getNextQuestionId();
+
+            Question question = lightAffectDao.getQuestionByQuestionId(nextQuestionId);
+
+            if(question!=null){
+                List<String> choiceList=lightAffectDao.getChoicesByQuestionTopic(question.getTopic());
+
+                if(choiceList.isEmpty()){
+                    //lightAffectDao.getAllProductsFromChoiceId();
+
+                }
+            }
+            else{
+
+
+            }
+
+
+
+
+
+            /*if (quickReplyPayload.equals(Men)) {
                 final List<QuickReply> quickReplies = QuickReply.newListBuilder()
                         .addTextQuickReply("Տռուսիկ", TrusikMan).toList()
                         .addTextQuickReply("Մայկա", MaykaMan).toList()
@@ -404,7 +433,7 @@ public class CallBackHandler {
                 sendTextMessage(senderId, "Ցավոք ․․․ Նորից դիտելու համար դուք կարող եք պարզապես գրել 'start'");
             } else {
                 getProductById(quickReplyPayload);
-            }
+            }*/
 //                    sendGifMessage(senderId, "https://media.giphy.com/media/26ybx7nkZXtBkEYko/giphy.gif");
 
 /*
