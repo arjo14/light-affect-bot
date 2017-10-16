@@ -1,6 +1,7 @@
 package me.aboullaite.domain;
 
 import com.github.messenger4j.send.QuickReply;
+import com.github.messenger4j.send.templates.GenericTemplate;
 
 import java.util.List;
 
@@ -12,6 +13,8 @@ public interface LightAffectDao {
 
     List<String> getChoicesByQuestionTopic(String topic);
 
+    List<String> getChoicesByQuestionId(String questionId);
+
     String getQuestionByTopic(String start);
 
     List<QuickReply> getListOfQuickRepliesForStart(String topic);
@@ -20,4 +23,13 @@ public interface LightAffectDao {
 
     Question getQuestionByQuestionId(Integer questionId);
 
+    List<Product> getAllProductsFromChoiceId(Integer typeId);
+
+    List<ProductPhoto> getProductPhotosByProductId(Integer id);
+
+    ProductPhoto getOneProductPhotoByProductId(Integer id);
+
+    GenericTemplate getQuickRepliesForProducts(List<Product> products);
+
+    List<QuickReply> getQuickRepliesFromChoiceListAndQuestion(List<String> choiceList, Question question);
 }

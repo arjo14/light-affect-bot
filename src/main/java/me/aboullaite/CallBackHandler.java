@@ -11,12 +11,8 @@ import com.github.messenger4j.send.*;
 import com.github.messenger4j.send.buttons.Button;
 import com.github.messenger4j.send.templates.GenericTemplate;
 import com.github.messenger4j.user.UserProfile;
-import com.github.messenger4j.user.UserProfileClient;
 import com.github.messenger4j.user.UserProfileClientBuilder;
-import me.aboullaite.domain.Choice;
-import me.aboullaite.domain.LightAffectDao;
-import me.aboullaite.domain.Question;
-import me.aboullaite.domain.SearchResult;
+import me.aboullaite.domain.*;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -153,6 +149,7 @@ public class CallBackHandler {
 
             switch (messageText.toLowerCase()) {
                 case "start":
+                case "go":
                     List<QuickReply> quickList = lightAffectDao.getListOfQuickRepliesForStart("topic");
 
                     String questionForBarev = lightAffectDao.getQuestionByTopic("start");
@@ -317,133 +314,47 @@ public class CallBackHandler {
 
             Question question = lightAffectDao.getQuestionByQuestionId(nextQuestionId);
 
-            if(question!=null){
-                List<String> choiceList=lightAffectDao.getChoicesByQuestionTopic(question.getTopic());
+            if (question != null) {
+                List<String> choiceList = lightAffectDao.getChoicesByQuestionId(question.getId().toString());
 
-                if(choiceList.isEmpty()){
-                    //lightAffectDao.getAllProductsFromChoiceId();
+                if (choiceList.isEmpty()) {
+                    List<Product> products = lightAffectDao.getAllProductsFromChoiceId(choiceId);
 
-                }
-            }
-            else{
-
-
-            }
-
-
-
-
-
-            /*if (quickReplyPayload.equals(Men)) {
-                final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                        .addTextQuickReply("Տռուսիկ", TrusikMan).toList()
-                        .addTextQuickReply("Մայկա", MaykaMan).toList()
-                        .addTextQuickReply("Կոշիկ", KoshikMan).toList()
-                        .build();
-
-                try {
-                    this.sendClient.sendTextMessage(senderId, "Ընտրեք  ինչ է ձեզ հետաքրքում ?", quickReplies);
-                } catch (MessengerApiException | MessengerIOException e) {
-                    e.printStackTrace();
-                }
-//                    sendGifMessage(senderId, "https://media.giphy.com/media/3oz8xPxTUeebQ8pL1e/giphy.gif");
-            } else if (quickReplyPayload.equals(Women)) {
-                final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                        .addTextQuickReply("Տռուսիկ", TrusikWoman).toList()
-                        .addTextQuickReply("Մայկա", MaykaWoman).toList()
-                        .addTextQuickReply("Բիժու", BijuWoman).toList()
-                        .addTextQuickReply("Կոշիկ", KoshikWoman).toList()
-                        .build();
-
-                try {
-                    this.sendClient.sendTextMessage(senderId, "Ընտրեք  ինչ է ձեզ հետաքրքում ?", quickReplies);
-                } catch (MessengerApiException | MessengerIOException e) {
-                    e.printStackTrace();
-                }
-            } else if (quickReplyPayload.equals(MaykaWoman)) {
+//                        List<ProductPhoto> productPhotoList = lightAffectDao.getProductPhotosByProductId(product.getId());
+                        try {
+                            GenericTemplate reply = lightAffectDao.getQuickRepliesForProducts(products);
+                            if(reply==null){
+                                this.sendTextMessage(senderId,"Ցավոք տվյալ պահին ոչ մի տվյալներ չգտնվեցին\nՆորից որոնելու համար գրեք 'start' կամ 'go'");
+                            }else {
+                                this.sendClient.sendTemplate(senderId, reply);
+                            }
+                        } catch (MessengerApiException | MessengerIOException e) {
+                            e.printStackTrace();
+                        }
 
 
-                final GenericTemplate genericTemplate = GenericTemplate.newBuilder()
-                        .addElements()
-                        .addElement("Շորիկ")
-                        .subtitle("N1")
-                        .imageUrl("https://scontent.fevn1-1.fna.fbcdn.net/v/t31.0-8/18836668_1975739422660318_8841904638295923351_o.jpg?oh=316f99c55180fb1882ddc5b73daafb43&oe=5A4638F2")
-                        .toList()
-                        .addElement("Շորիկ")
-                        .imageUrl("https://scontent.fevn1-1.fna.fbcdn.net/v/t31.0-8/19390634_1984278141806446_5720918993626411404_o.jpg?oh=9df18a8ed80fb94e92b0972055d705ce&oe=5A7D4A60")
-                        .subtitle("N2")
-                        .toList()
-                        .addElement("Շորիկ")
-                        .imageUrl("https://scontent.fevn1-1.fna.fbcdn.net/v/t1.0-9/21192570_2022213041346289_8292937856284510617_n.jpg?oh=55fb9dc481d827ac0cee5db7488d36e1&oe=5A3BA6B9")
-                        .subtitle("N3")
-                        .toList()
-                        .addElement("Շորիկ")
-                        .imageUrl("https://scontent.fevn1-1.fna.fbcdn.net/v/t31.0-8/21246504_2022214021346191_9126202906630822922_o.jpg?oh=a2da98218e012a1a7ca0441d8cd65400&oe=5A739372")
-                        .subtitle("N4")
-                        .toList()
-                        .done()
-                        .build();
-
-                try {
-                    this.sendClient.sendTemplate(senderId, genericTemplate);
-                    final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                            .addTextQuickReply("N1", "N1").toList()
-                            .addTextQuickReply("N2", "N2").toList()
-                            .addTextQuickReply("N3", "N3").toList()
-                            .addTextQuickReply("N4", "N4").toList()
-                            .addTextQuickReply("Ոչ մեկ", "Ոչ մեկ").toList()
-                            .build();
-
+                } else {
+                    List<QuickReply> quickReplies = lightAffectDao.getQuickRepliesFromChoiceListAndQuestion(choiceList, question);
                     try {
-                        this.sendClient.sendTextMessage(senderId, "Ընտրեք  որ ապրանքն է ձեզ հետաքրքրում?", quickReplies);
+                        this.sendClient.sendTextMessage(senderId, question.getName(), quickReplies);
                     } catch (MessengerApiException | MessengerIOException e) {
                         e.printStackTrace();
                     }
-                } catch (MessengerApiException | MessengerIOException e) {
-                    e.printStackTrace();
                 }
 
-            } else if (quickReplyPayload.equals("Ոչ մեկ")) {
-                sendTextMessage(senderId, "Ցավոք ձեզ դուր չեկավ մեր տեսականին․․․");
-
-                final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                        .addTextQuickReply("Այո", "Այո").toList()
-                        .addTextQuickReply("Ոչ", "Ոչ").toList()
-                        .build();
-
-                try {
-                    this.sendClient.sendTextMessage(senderId, "Կցանկանաք շարունակել ?", quickReplies);
-                } catch (MessengerApiException | MessengerIOException e) {
-                    e.printStackTrace();
+            } else if (choiceId == 2) {
+                List<Contact> contactList = lightAffectDao.getContacts();
+                sendTextMessage(senderId, "Մեր կոնտակտային տվյալներն են․");
+                for (Contact contact : contactList) {
+                    sendTextMessage(senderId, contact.getPlaceName() + "\n"
+                            + "Հասցե․ " + contact.getAddress() + "\n"
+                            + "Հեռախոս․ " + contact.getPhoneNumber());
                 }
+                sendTextMessage(senderId, "Տեսականուն ծանոթանալու համար  գրեք 'start' կամ 'go'");
 
-            } else if (quickReplyPayload.equals("Այո")) {
-                final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                        .addTextQuickReply("Տղամարդու", Men).toList()
-                        .addTextQuickReply("Կանացի", Women).toList()
-                        .build();
+            }
 
-                try {
-                    this.sendClient.sendTextMessage(senderId, "Ընտրեք  որ բաժինն է հետաքրքրում?", quickReplies);
-                } catch (MessengerApiException | MessengerIOException e) {
-                    e.printStackTrace();
-                }
-
-            } else if (quickReplyPayload.equals("Ոչ")) {
-                sendTextMessage(senderId, "Ցավոք ․․․ Նորից դիտելու համար դուք կարող եք պարզապես գրել 'start'");
-            } else {
-                getProductById(quickReplyPayload);
-            }*/
-//                    sendGifMessage(senderId, "https://media.giphy.com/media/26ybx7nkZXtBkEYko/giphy.gif");
-
-/*
-            sendTextMessage(senderId, "Let's try another one :D!");
-*/
         };
-    }
-
-    public void getProductById(String productId) {
-
     }
 
     private PostbackEventHandler newPostbackEventHandler() {
