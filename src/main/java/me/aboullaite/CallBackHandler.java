@@ -308,6 +308,18 @@ public class CallBackHandler {
             logger.info("Received quick reply for message '{}' with payload '{}'", messageId, quickReplyPayload);
 
             Integer choiceId = Integer.valueOf(quickReplyPayload.substring(0, quickReplyPayload.indexOf('_')));
+            if (choiceId == 0) {
+                List<QuickReply> quickList = lightAffectDao.getListOfQuickRepliesForStart("topic");
+
+                String questionForBarev = lightAffectDao.getQuestionByTopic("start");
+
+                try {
+                    this.sendClient.sendTextMessage(senderId, questionForBarev, quickList);
+                } catch (MessengerApiException | MessengerIOException e) {
+                    e.printStackTrace();
+                }
+                return;
+            }
 
             Choice choice = lightAffectDao.getChoiceFromChoiceId(choiceId);
             Integer nextQuestionId = choice.getNextQuestionId();
@@ -321,16 +333,23 @@ public class CallBackHandler {
                     List<Product> products = lightAffectDao.getAllProductsFromChoiceId(choiceId);
 
 //                        List<ProductPhoto> productPhotoList = lightAffectDao.getProductPhotosByProductId(product.getId());
+                    try {
+                        GenericTemplate reply = lightAffectDao.getQuickRepliesForProducts(products);
+                        if (reply == null) {
+                            this.sendTextMessage(senderId, "Ցավոք տվյալ պահին ոչ մի տվյալներ չգտնվեցին\nՆորից որոնելու համար գրեք 'start' կամ 'go'");
+                        } else {
+                            this.sendClient.sendTemplate(senderId, reply);
+                        }
+                        List<QuickReply> quickReplies = QuickReply.newListBuilder().addTextQuickReply("Այստեղ", "0_Այստեղ").toList().build();
                         try {
-                            GenericTemplate reply = lightAffectDao.getQuickRepliesForProducts(products);
-                            if(reply==null){
-                                this.sendTextMessage(senderId,"Ցավոք տվյալ պահին ոչ մի տվյալներ չգտնվեցին\nՆորից որոնելու համար գրեք 'start' կամ 'go'");
-                            }else {
-                                this.sendClient.sendTemplate(senderId, reply);
-                            }
+                            this.sendClient.sendTextMessage(senderId, "Կրկին որոնելու համար սեղմեք այստեղ", quickReplies);
                         } catch (MessengerApiException | MessengerIOException e) {
                             e.printStackTrace();
                         }
+
+                    } catch (MessengerApiException | MessengerIOException e) {
+                        e.printStackTrace();
+                    }
 
 
                 } else {
@@ -341,7 +360,6 @@ public class CallBackHandler {
                         e.printStackTrace();
                     }
                 }
-
             } else if (choiceId == 2) {
                 List<Contact> contactList = lightAffectDao.getContacts();
                 sendTextMessage(senderId, "Մեր կոնտակտային տվյալներն են․");
@@ -350,7 +368,12 @@ public class CallBackHandler {
                             + "Հասցե․ " + contact.getAddress() + "\n"
                             + "Հեռախոս․ " + contact.getPhoneNumber());
                 }
-                sendTextMessage(senderId, "Տեսականուն ծանոթանալու համար  գրեք 'start' կամ 'go'");
+                List<QuickReply> quickReplies = QuickReply.newListBuilder().addTextQuickReply("Այստեղ", "0_Այստեղ").toList().build();
+                try {
+                    this.sendClient.sendTextMessage(senderId, "Կրկին որոնելու համար սեղմեք այստեղ", quickReplies);
+                } catch (MessengerApiException | MessengerIOException e) {
+                    e.printStackTrace();
+                }
 
             }
 
