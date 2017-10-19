@@ -9,6 +9,7 @@ import com.github.messenger4j.receive.events.AccountLinkingEvent;
 import com.github.messenger4j.receive.handlers.*;
 import com.github.messenger4j.send.*;
 import com.github.messenger4j.send.buttons.Button;
+import com.github.messenger4j.send.templates.ButtonTemplate;
 import com.github.messenger4j.send.templates.GenericTemplate;
 import com.github.messenger4j.user.UserProfile;
 import com.github.messenger4j.user.UserProfileClientBuilder;
@@ -25,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -146,8 +148,42 @@ public class CallBackHandler {
 
             logger.info("Received message '{}' with text '{}' from user '{}' at '{}'",
                     userProfile == null ? messageId : userProfile.getFirstName(), messageText, senderId, timestamp);
+            int count = 0;
+            if (messageText.toLowerCase().startsWith("kode")) {
+                count = 4;
+
+            } else if (messageText.toLowerCase().startsWith("kod") || messageText.toLowerCase().startsWith("կոդ")) {
+                count = 3;
+            }
+            if (count != 0) {
+                String productId = messageText.substring(count).trim();
+                ProductPhoto photo = lightAffectDao.getOneProductPhotoByProductId(Integer.valueOf(productId));
+                Product product = lightAffectDao.getProductById(productId);
+                if (photo != null) {
+                    Button.ListBuilder list = Button.newListBuilder().addPostbackButton("Կրկին որոնել", "0_start").toList();
+                    final GenericTemplate genericTemplate = GenericTemplate.newBuilder()
+                            .addElements()
+                            .addElement("կոդ" + productId)
+                            .subtitle(product.getPrice())
+                            .buttons(list.build())
+                            .itemUrl(photo.getTargetUrl())
+                            .imageUrl(photo.getUrl())
+                            .toList()
+                            .done()
+                            .build();
+                    try {
+                        this.sendClient.sendTemplate(senderId, genericTemplate);
+                    } catch (MessengerApiException | MessengerIOException e) {
+                        e.printStackTrace();
+                    }
+                    return;
+                }
+            }
 
             switch (messageText.toLowerCase()) {
+                case "mersi":
+                case"shnorhakalucyun":
+                case"shnorhakalutyun": sendTextMessage(senderId,"Ձեզ շնորհակալություն հարգելի " +userProfile.getFirstName());break;
                 case "start":
                 case "go":
                     List<QuickReply> quickList = lightAffectDao.getListOfQuickRepliesForStart("topic");
@@ -163,7 +199,9 @@ public class CallBackHandler {
                     break;
                 case "barev":
                 case "hi":
+                case "hello":
                 case "barlus":
+                case "barigun":
                 case "barior":
                 case "privet":
                 case "zdrasci":
@@ -193,7 +231,7 @@ public class CallBackHandler {
                 case "bye":
                 case "poka":
                 case "bari gisher":
-                    sendTextMessage(senderId, "Դավայ բռատ");
+                    sendTextMessage(senderId, "Հաջողություն հարգելի " + userProfile.getFirstName());
                     break;
                 case "inch ka ?":
                 case "inch ka?":
@@ -203,99 +241,16 @@ public class CallBackHandler {
                 case "vonc es?":
                 case "vonc es":
                 case "vonces":
-                    sendTextMessage(senderId, "Նոռմալ բռատ,դու ասա");
+                    sendTextMessage(senderId, "Նոռմալ հարգելի " + userProfile.getFirstName());
                     break;
 
                 default:
-                    sendTextMessage(senderId, "Չեմ ջոգում։ ՈՒրիշ բան գրի!");
+                    sendTextMessage(senderId, "Չեմ հասկանում։ Խնդրում եմ գրեք 'help' օգնության համար");
                     break;
             }
         };
     }
 
-    private void sendSpringDoc(String recipientId, String keyword) throws MessengerApiException, MessengerIOException, IOException {
-
-        Document doc = Jsoup.connect(("https://spring.io/search?q=").concat(keyword)).get();
-        String countResult = doc.select("div.search-results--count").first().ownText();
-        Elements searchResult = doc.select("section.search-result");
-        List<SearchResult> searchResults = searchResult.stream().map(element ->
-                new SearchResult(element.select("a").first().ownText(),
-                        element.select("a").first().absUrl("href"),
-                        element.select("div.search-result--subtitle").first().ownText(),
-                        element.select("div.search-result--summary").first().ownText())
-        ).limit(3).collect(Collectors.toList());
-
-        final List<Button> firstLink = Button.newListBuilder()
-                .addUrlButton("Open Link", searchResults.get(0).getLink()).toList()
-                .build();
-        final List<Button> secondLink = Button.newListBuilder()
-                .addUrlButton("Open Link", searchResults.get(1).getLink()).toList()
-                .build();
-        final List<Button> thirdtLink = Button.newListBuilder()
-                .addUrlButton("Open Link", searchResults.get(2).getLink()).toList()
-                .build();
-        final List<Button> searchLink = Button.newListBuilder()
-                .addUrlButton("Open Link", ("https://spring.io/search?q=").concat(keyword)).toList()
-                .build();
-
-
-        final GenericTemplate genericTemplate = GenericTemplate.newBuilder()
-                .addElements()
-                .addElement(searchResults.get(0).getTitle())
-                .subtitle(searchResults.get(0).getSubtitle())
-                .itemUrl(searchResults.get(0).getLink())
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(firstLink)
-                .toList()
-                .addElement(searchResults.get(1).getTitle())
-                .subtitle(searchResults.get(1).getSubtitle())
-                .itemUrl(searchResults.get(1).getLink())
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(secondLink)
-                .toList()
-                .addElement(searchResults.get(2).getTitle())
-                .subtitle(searchResults.get(2).getSubtitle())
-                .itemUrl(searchResults.get(2).getLink())
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(thirdtLink)
-                .toList()
-                .addElement("All results " + countResult)
-                .subtitle("Spring Search Result")
-                .itemUrl(("https://spring.io/search?q=").concat(keyword))
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(searchLink)
-                .toList()
-                .done()
-                .build();
-
-        this.sendClient.sendTemplate(recipientId, genericTemplate);
-    }
-
-    private void sendGifMessage(String recipientId, String gif) throws MessengerApiException, MessengerIOException {
-        this.sendClient.sendImageAttachment(recipientId, gif);
-    }
-
-
-    private void sendQuickReply(String recipientId) throws MessengerApiException, MessengerIOException {
-        final List<QuickReply> quickReplies = QuickReply.newListBuilder()
-                .addTextQuickReply("Looks good", Men).toList()
-                .addTextQuickReply("Nope!", Women).toList()
-                .build();
-
-        this.sendClient.sendTextMessage(recipientId, "Was this helpful?!", quickReplies);
-    }
-
-    private void sendReadReceipt(String recipientId) throws MessengerApiException, MessengerIOException {
-        this.sendClient.sendSenderAction(recipientId, SenderAction.MARK_SEEN);
-    }
-
-    private void sendTypingOn(String recipientId) throws MessengerApiException, MessengerIOException {
-        this.sendClient.sendSenderAction(recipientId, SenderAction.TYPING_ON);
-    }
-
-    private void sendTypingOff(String recipientId) throws MessengerApiException, MessengerIOException {
-        this.sendClient.sendSenderAction(recipientId, SenderAction.TYPING_OFF);
-    }
 
     private QuickReplyMessageEventHandler newQuickReplyMessageEventHandler() {
         return event -> {
@@ -331,20 +286,18 @@ public class CallBackHandler {
 
                 if (choiceList.isEmpty()) {
                     List<Product> products = lightAffectDao.getAllProductsFromChoiceId(choiceId);
-
-//                        List<ProductPhoto> productPhotoList = lightAffectDao.getProductPhotosByProductId(product.getId());
                     try {
                         GenericTemplate reply = lightAffectDao.getQuickRepliesForProducts(products);
                         if (reply == null) {
-                            this.sendTextMessage(senderId, "Ցավոք տվյալ պահին ոչ մի տվյալներ չգտնվեցին\nՆորից որոնելու համար գրեք 'start' կամ 'go'");
+                            List<QuickReply> quickReplies = QuickReply.newListBuilder().addTextQuickReply("Այստեղ", "0_Այստեղ").toList().build();
+                            try {
+                                this.sendClient.sendTextMessage(senderId, "Ցավոք տվյալ պահին ոչ մի տվյալներ չգտնվեցին\nԿրկին որոնելու համար սեղմեք այստեղ", quickReplies);
+                            } catch (MessengerApiException | MessengerIOException e) {
+                                e.printStackTrace();
+                            }
+
                         } else {
                             this.sendClient.sendTemplate(senderId, reply);
-                        }
-                        List<QuickReply> quickReplies = QuickReply.newListBuilder().addTextQuickReply("Այստեղ", "0_Այստեղ").toList().build();
-                        try {
-                            this.sendClient.sendTextMessage(senderId, "Կրկին որոնելու համար սեղմեք այստեղ", quickReplies);
-                        } catch (MessengerApiException | MessengerIOException e) {
-                            e.printStackTrace();
                         }
 
                     } catch (MessengerApiException | MessengerIOException e) {
@@ -388,11 +341,44 @@ public class CallBackHandler {
             final String recipientId = event.getRecipient().getId();
             final String payload = event.getPayload();
             final Date timestamp = event.getTimestamp();
+            if ("0" .equals(payload)) {
 
-            logger.info("Received postback for user '{}' and page '{}' with payload '{}' at '{}'",
-                    senderId, recipientId, payload, timestamp);
+                List<QuickReply> quickList = lightAffectDao.getListOfQuickRepliesForStart("topic");
 
-            sendTextMessage(senderId, "Postback called");
+                String questionForBarev = lightAffectDao.getQuestionByTopic("start");
+
+                try {
+                    this.sendClient.sendTextMessage(senderId, questionForBarev, quickList);
+                } catch (MessengerApiException | MessengerIOException e) {
+                    e.printStackTrace();
+                }
+            } else if ("contact" .equals(payload)) {
+                List<Contact> contactList = lightAffectDao.getContacts();
+                sendTextMessage(senderId, "ԳՆելու կամ չափսերի առկայության համար կապնվեք մեզ հետ։\nՄեր կոնտակտային տվյալներն են․");
+                for (Contact contact : contactList) {
+                    sendTextMessage(senderId, contact.getPlaceName() + "\n"
+                            + "Հասցե․ " + contact.getAddress() + "\n"
+                            + "Հեռախոս․ " + contact.getPhoneNumber());
+                }
+                List<QuickReply> quickReplies = QuickReply.newListBuilder().addTextQuickReply("Այստեղ", "0_Այստեղ").toList().build();
+                try {
+                    this.sendClient.sendTextMessage(senderId, "Կրկին որոնելու համար սեղմեք այստեղ", quickReplies);
+                } catch (MessengerApiException | MessengerIOException e) {
+                    e.printStackTrace();
+                }
+
+            } else if (payload.contains("seeMore")) {
+                String productId = payload.substring(7);
+                List<ProductPhoto> productPhotosByProductId = lightAffectDao.getProductPhotosByProductId(Integer.valueOf(productId));
+                final GenericTemplate genericTemplate = lightAffectDao.getGenericTemplateForOneProduct(productPhotosByProductId);
+                try {
+                    this.sendClient.sendTemplate(senderId, genericTemplate);
+                } catch (MessengerApiException | MessengerIOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
         };
     }
 
@@ -501,5 +487,89 @@ public class CallBackHandler {
 
     private void handleIOException(Exception e) {
         logger.error("Could not open Spring.io page. An unexpected error occurred.", e);
+    }
+
+    private void sendSpringDoc(String recipientId, String keyword) throws MessengerApiException, MessengerIOException, IOException {
+
+        Document doc = Jsoup.connect(("https://spring.io/search?q=").concat(keyword)).get();
+        String countResult = doc.select("div.search-results--count").first().ownText();
+        Elements searchResult = doc.select("section.search-result");
+        List<SearchResult> searchResults = searchResult.stream().map(element ->
+                new SearchResult(element.select("a").first().ownText(),
+                        element.select("a").first().absUrl("href"),
+                        element.select("div.search-result--subtitle").first().ownText(),
+                        element.select("div.search-result--summary").first().ownText())
+        ).limit(3).collect(Collectors.toList());
+
+        final List<Button> firstLink = Button.newListBuilder()
+                .addUrlButton("Open Link", searchResults.get(0).getLink()).toList()
+                .build();
+        final List<Button> secondLink = Button.newListBuilder()
+                .addUrlButton("Open Link", searchResults.get(1).getLink()).toList()
+                .build();
+        final List<Button> thirdtLink = Button.newListBuilder()
+                .addUrlButton("Open Link", searchResults.get(2).getLink()).toList()
+                .build();
+        final List<Button> searchLink = Button.newListBuilder()
+                .addUrlButton("Open Link", ("https://spring.io/search?q=").concat(keyword)).toList()
+                .build();
+
+
+        final GenericTemplate genericTemplate = GenericTemplate.newBuilder()
+                .addElements()
+                .addElement(searchResults.get(0).getTitle())
+                .subtitle(searchResults.get(0).getSubtitle())
+                .itemUrl(searchResults.get(0).getLink())
+                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
+                .buttons(firstLink)
+                .toList()
+                .addElement(searchResults.get(1).getTitle())
+                .subtitle(searchResults.get(1).getSubtitle())
+                .itemUrl(searchResults.get(1).getLink())
+                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
+                .buttons(secondLink)
+                .toList()
+                .addElement(searchResults.get(2).getTitle())
+                .subtitle(searchResults.get(2).getSubtitle())
+                .itemUrl(searchResults.get(2).getLink())
+                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
+                .buttons(thirdtLink)
+                .toList()
+                .addElement("All results " + countResult)
+                .subtitle("Spring Search Result")
+                .itemUrl(("https://spring.io/search?q=").concat(keyword))
+                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
+                .buttons(searchLink)
+                .toList()
+                .done()
+                .build();
+
+        this.sendClient.sendTemplate(recipientId, genericTemplate);
+    }
+
+    private void sendGifMessage(String recipientId, String gif) throws MessengerApiException, MessengerIOException {
+        this.sendClient.sendImageAttachment(recipientId, gif);
+    }
+
+
+    private void sendQuickReply(String recipientId) throws MessengerApiException, MessengerIOException {
+        final List<QuickReply> quickReplies = QuickReply.newListBuilder()
+                .addTextQuickReply("Looks good", Men).toList()
+                .addTextQuickReply("Nope!", Women).toList()
+                .build();
+
+        this.sendClient.sendTextMessage(recipientId, "Was this helpful?!", quickReplies);
+    }
+
+    private void sendReadReceipt(String recipientId) throws MessengerApiException, MessengerIOException {
+        this.sendClient.sendSenderAction(recipientId, SenderAction.MARK_SEEN);
+    }
+
+    private void sendTypingOn(String recipientId) throws MessengerApiException, MessengerIOException {
+        this.sendClient.sendSenderAction(recipientId, SenderAction.TYPING_ON);
+    }
+
+    private void sendTypingOff(String recipientId) throws MessengerApiException, MessengerIOException {
+        this.sendClient.sendSenderAction(recipientId, SenderAction.TYPING_OFF);
     }
 }

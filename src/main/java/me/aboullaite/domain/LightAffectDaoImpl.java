@@ -1,6 +1,7 @@
 package me.aboullaite.domain;
 
 import com.github.messenger4j.send.QuickReply;
+import com.github.messenger4j.send.buttons.Button;
 import com.github.messenger4j.send.templates.GenericTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -136,18 +137,47 @@ public class LightAffectDaoImpl implements LightAffectDao {
     }
 
     @Override
-    public GenericTemplate getQuickRepliesForProducts(List<Product> products) {
-        GenericTemplate.Builder builder = GenericTemplate.newBuilder();
+    public Product getProductById(String productId) {
+        String sql = "SELECT * FROM LIGHT_AFFECT.PRODUCT WHERE ID = ?";
+        return jdbcTemplate.queryForObject(sql, (resultSet, i) -> new Product(resultSet.getInt(1), resultSet.getString(2),
+                resultSet.getInt(3)), Integer.parseInt(productId));
+    }
 
-        GenericTemplate.Element.ListBuilder listBuilder = builder.addElements();
+    @Override
+    public GenericTemplate getGenericTemplateForOneProduct(List<ProductPhoto> list) {
+
+        GenericTemplate.Element.ListBuilder listBuilder = GenericTemplate.newBuilder().addElements();
+
+        Product product = getProductById(String.valueOf(list.get(0).getProductId()));
+        for (ProductPhoto productPhoto : list) {
+            Button.ListBuilder buttonList = Button.newListBuilder().addPostbackButton("Կրկին որոնել", "0").toList();
+            listBuilder
+                    .addElement("Կոդ " + productPhoto.getProductId())
+                    .subtitle(product.getPrice())
+                    .buttons(buttonList.addPostbackButton("Կոնտակտներ", "contact").toList().build())
+                    //todo change productPhoto.toString.. show photo
+                    .imageUrl(productPhoto.getUrl())
+                    .itemUrl(productPhoto.getTargetUrl())
+                    .toList();
+        }
+        return listBuilder.done().build();
+    }
+
+    @Override
+    public GenericTemplate getQuickRepliesForProducts(List<Product> products) {
+
+        GenericTemplate.Element.ListBuilder listBuilder = GenericTemplate.newBuilder().addElements();
         boolean isAbleToBuild = false;
+
         for (Product product : products) {
             ProductPhoto productPhoto = getOneProductPhotoByProductId(product.getId());
+            Button.ListBuilder list = Button.newListBuilder().addPostbackButton("Կրկին որոնել", "0_start").toList();
             if (productPhoto != null) {
                 isAbleToBuild = true;
                 listBuilder
-                        .addElement("Կոդ " + product.getId().toString())
+                        .addElement("Կոդ " + product.getId())
                         .subtitle(product.getPrice())
+                        .buttons(list.addPostbackButton("Տեսնել ավելին", "seeMore" + productPhoto.getId()).toList().build())
                         //todo change productPhoto.toString.. show photo
                         .imageUrl(productPhoto.getUrl())
                         .itemUrl(productPhoto.getTargetUrl())

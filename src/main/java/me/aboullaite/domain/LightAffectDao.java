@@ -32,4 +32,8 @@ public interface LightAffectDao {
     GenericTemplate getQuickRepliesForProducts(List<Product> products);
 
     List<QuickReply> getQuickRepliesFromChoiceListAndQuestion(List<String> choiceList, Question question);
+
+    Product getProductById(String productId);
+
+    GenericTemplate getGenericTemplateForOneProduct(List<ProductPhoto> list);
 }
